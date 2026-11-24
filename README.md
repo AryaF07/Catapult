@@ -4,10 +4,10 @@ Built at **Hack-A-Bot 2026** (24-hour team hackathon). A Raspberry Pi Pico 2 run
 
 ## How it works
 
-1. **Scan** – a positional servo sweeps the turret through 13 positions across a ~90° arc (PWM 3000 → 1800 µs in 100 µs steps).
-2. **Measure** – at each position the VL53L0X ToF sensor (I2C @ 400 kHz) takes 20 readings; the **median** is kept to reject noise and outliers.
+1. **Scan** – a positional servo sweeps the turret through 13 positions across a ~90° arc (PWM 3000 → 1800 µs in 100 µs steps), starting from whichever end is nearer.
+2. **Measure** – at each position the VL53L0X ToF sensor (I2C @ 400 kHz, continuous mode) takes 7 readings; the **median** is kept to reject noise and outliers.
 3. **Filter** – readings outside the 25–1400 mm valid range are discarded.
-4. **Cluster** – adjacent valid angles are grouped into objects.
+4. **Cluster** – adjacent valid angles are grouped into objects, splitting on gaps in angle or jumps in depth.
 5. **Select** – each cluster's centre angle and median distance are computed, and the **closest** object is chosen as the target.
 6. **Aim & fire** – the turret rotates to the target angle and a servo-driven sequence (continuous-rotation winding servo + release/latch servo) launches the projectile, then resets to a known home position and repeats.
 
@@ -26,6 +26,10 @@ Built at **Hack-A-Bot 2026** (24-hour team hackathon). A Raspberry Pi Pico 2 run
 | File | Purpose |
 |---|---|
 | `main.py` | Control loop: scan → filter → cluster → target → aim → fire |
+| `targeting.py` | Hardware-independent filtering, clustering and target selection |
+| `sim/simulate.py` | PC Monte Carlo simulation comparing original vs optimised code |
+| `sim/baseline.py` | Original hackathon targeting logic, kept for comparison |
+| `tests/` | Unit tests for `targeting.py` |
 | `mini_servo.py` | Positional servo driver with calibrated pulse widths |
 | `larger_servo.py` | Continuous-rotation servo driver (timed 180° turns) |
 | `vl53l0x.py` | VL53L0X ToF sensor driver (third-party MicroPython driver) |
@@ -36,6 +40,17 @@ Built at **Hack-A-Bot 2026** (24-hour team hackathon). A Raspberry Pi Pico 2 run
 ## Running
 
 Flash MicroPython onto the Pico 2, upload all `.py` files (e.g. with the MicroPico VS Code extension), then run `main.py` (or save it to the board so it runs on boot).
+
+## Optimisation & simulation
+
+After the hackathon the code was optimised and a PC simulator was added (no hardware needed). Simulated results: target selection accuracy **89% → 97.5%**, scan time **18.5 s → 4.6 s**, full cycle **24 s → 9.9 s**. See [OPTIMISATION.md](OPTIMISATION.md) and [sim/results.md](sim/results.md).
+
+```
+python sim/simulate.py
+python -m unittest discover tests
+```
+
+Upload `targeting.py` to the Pico alongside the other `.py` files (not `sim/` or `tests/`).
 
 ## Planned improvements
 
